@@ -7,29 +7,26 @@ from pathlib import Path
 import os
 
 def extract_and_output_env():
-    task_files = ["task_01", "task_02", "task_03"]
-    outputs = []
+    with open(".github/tasks.json", "r", encoding="utf-8") as f:
+        config = json.load(f)
 
-    for tf in task_files:
-        path = f"./aggregated/{tf}_aggregated.txt"
-        encoded = ""
-        if os.path.exists(path):
-            with open(path) as f:
-                content = f.read()
-            if "AGGREGATED_RESULT=" in content:
-                encoded = content.split("AGGREGATED_RESULT=")[1].strip()
-        outputs.append(f"{tf}_aggregated={encoded}")
-
-    # Записываем в GITHUB_OUTPUT файл (новый способ)
     github_output = os.environ.get("GITHUB_OUTPUT")
-    if github_output:
-        with open(github_output, "a") as f:
-            for line in outputs:
-                f.write(line + "\n")
-    else:
-        # Для локального тестирования — выводим в stdout (но без ::set-output!)
-        for line in outputs:
-            print(line)
+    if not github_output:
+        print("GITHUB_OUTPUT not set — running locally?")
+        return
+
+    with open(github_output, "a") as f:
+        for task in config["tasks"]:
+            task_id = task["id"]  # например: "task_04"
+            path = f"./aggregated/{task_id}_aggregated.txt"
+            encoded = ""
+            if os.path.exists(path):
+                with open(path) as fp:
+                    content = fp.read()
+                if "AGGREGATED_RESULT=" in content:
+                    encoded = content.split("AGGREGATED_RESULT=")[1].strip()
+            # Пишем в формате: task_04_aggregated=...
+            f.write(f"{task_id}_aggregated={encoded}\n")
 
 def generate_summary():
     with open(".github/tasks.json", "r", encoding="utf-8") as f:
