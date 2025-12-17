@@ -74,11 +74,12 @@ jobs:
     - name: Report to GitHub Classroom
       uses: classroom-resources/autograding-grading-reporter@v1
       env:
-        TASK_01_RESULTS: "${{ steps.extract_results.outputs.task1_aggregated }}"
-        TASK_02_RESULTS: "${{ steps.extract_results.outputs.task2_aggregated }}"
-        TASK_03_RESULTS: "${{ steps.extract_results.outputs.task3_aggregated }}"
+        TASK_01_RESULTS: "${{ steps.extract_results.outputs.task_01_aggregated }}"
+        TASK_02_RESULTS: "${{ steps.extract_results.outputs.task_02_aggregated }}"
+        TASK_03_RESULTS: "${{ steps.extract_results.outputs.task_03_aggregated }}"
+        # ← при добавлении задач — добавь вручную новые строки
       with:
-        runners: "task_01,task_02,task_03"
+        runners: "task_01,task_02,task_03"  # ← и сюда
 
     - name: Generate Final Summary
       run: |
