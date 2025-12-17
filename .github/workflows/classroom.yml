@@ -1,0 +1,107 @@
+name: Autograding Tests
+on:
+  - push
+  - repository_dispatch
+permissions:
+  checks: write
+  actions: read
+  contents: read
+
+jobs:
+  run-autograding-tests:
+    name: Оценивание заданий
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-classroom[bot]'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    
+    # ============ ЗАПУСК ВСЕХ ТЕСТОВ ============
+    - name: Run All Autograding Tests
+      id: run_tests
+      run: |
+        python3 tools/run_all_tests.py
+
+    # ============ АГРЕГАЦИЯ РЕЗУЛЬТАТОВ ============
+    - name: Aggregate All Task Results
+      id: aggregate
+      run: |
+        python3 tools/aggregate_all.py
+
+    # ============ СОХРАНЕНИЕ РЕЗУЛЬТАТОВ ============
+    - name: Save Aggregated Results
+      uses: actions/upload-artifact@v4
+      with:
+        name: aggregated-results
+        path: |
+          task*_aggregated.txt
+        retention-days: 1
+
+    # ============ ПАРСИНГ БАЛЛОВ ДЛЯ ОТЧЕТА ============
+    - name: Parse Scores for Report
+      id: parse_scores
+      run: |
+        python3 tools/parse_scores.py
+
+  # JOB 2: ФИНАЛЬНЫЙ ОТЧЕТ
+  generate-final-report:
+    name: Итоговый отчет и отправка
+    runs-on: ubuntu-latest
+    needs: run-autograding-tests
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download Aggregated Results
+      uses: actions/download-artifact@v4
+      with:
+        name: aggregated-results
+        path: ./aggregated
+
+    - name: Extract Aggregated Results
+      id: extract_results
+      run: |
+        python3 tools/report_summary.py --extract --output-env
+
+    - name: Report to GitHub Classroom
+      uses: classroom-resources/autograding-grading-reporter@v1
+      env:
+        TASK_01_RESULTS: "${{ steps.extract_results.outputs.task1_aggregated }}"
+        TASK_02_RESULTS: "${{ steps.extract_results.outputs.task2_aggregated }}"
+        TASK_03_RESULTS: "${{ steps.extract_results.outputs.task3_aggregated }}"
+      with:
+        runners: "task_01,task_02,task_03"
+
+    - name: Generate Final Summary
+      run: |
+        python3 tools/report_summary.py --generate-summary
+
+  # JOB 3: АНАЛИЗ КАЧЕСТВА КОДА
+  code-quality-analysis:
+    name: Анализ качества кода
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Install linters
+      run: |
+        pip install pylint flake8 ruff -q
+
+    - name: Run code analysis
+      run: |
+        python3 tools/code_analysis.py >> $GITHUB_STEP_SUMMARY
