@@ -24,7 +24,7 @@ def extract_and_output_env():
         print(f"::set-output name={var.split('=')[0]}::{var.split('=', 1)[1]}")
 
 def generate_summary():
-    with open("tools/config/tasks.json", "r", encoding="utf-8") as f:
+    with open(".github/tasks.json", "r", encoding="utf-8") as f:
         config = json.load(f)
 
     # Считаем баллы
