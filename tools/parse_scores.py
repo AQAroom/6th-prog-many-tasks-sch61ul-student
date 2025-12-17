@@ -1,63 +1,38 @@
 #!/usr/bin/env python3
-"""
-Парсит результаты тестов и вычисляет суммарные баллы
-"""
-
-import sys
 import json
-import base64
+import sys
+from pathlib import Path
 
-def parse_task_scores(*encoded_results):
-    """Парсит и суммирует баллы из результатов тестов"""
-    total_score = 0
-    test_count = 0
-    
-    print(f"Parsing {len(encoded_results)} test results...", file=sys.stderr)
-    
-    for i, encoded in enumerate(encoded_results):
-        if not encoded or encoded == 'null':
-            print(f"  Test {i+1}: empty result", file=sys.stderr)
-            continue
-            
-        try:
-            decoded = base64.b64decode(encoded).decode('utf-8')
-            data = json.loads(decoded)
-            
-            if 'tests' in data:
-                for test in data['tests']:
-                    score = test.get('score', 0)
-                    total_score += score
-                    test_count += 1
-                    print(f"  Test {test_count}: {test.get('name')} = {score} points", file=sys.stderr)
-            elif 'score' in data:
-                total_score += data['score']
-                test_count += 1
-                print(f"  Test {i+1}: direct score = {data['score']} points", file=sys.stderr)
-                
-        except Exception as e:
-            print(f"ERROR parsing test {i+1}: {e}", file=sys.stderr)
-    
-    print(f"Total: {total_score} points from {test_count} tests", file=sys.stderr)
-    return total_score
+sys.path.insert(0, str(Path(__file__).parent))
+from utils import decode_autograding_result
 
 def main():
-    if len(sys.argv) < 2:
-        print("TASK_SCORE=0")
-        return
-    
-    task_num = sys.argv[1]
-    
-    if task_num == "1" and len(sys.argv) >= 5:
-        score = parse_task_scores(sys.argv[2], sys.argv[3], sys.argv[4])
-        print(f"TASK_SCORE={score}")
-    elif task_num == "2" and len(sys.argv) >= 5:
-        score = parse_task_scores(sys.argv[2], sys.argv[3], sys.argv[4])
-        print(f"TASK_SCORE={score}")
-    elif task_num == "3" and len(sys.argv) >= 5:
-        score = parse_task_scores(sys.argv[2], sys.argv[3], sys.argv[4])
-        print(f"TASK_SCORE={score}")
-    else:
-        print("TASK_SCORE=0")
+    with open("tools/config/tasks.json", "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    total = 0
+    outputs = []
+
+    for task in config["tasks"]:
+        task_id = task["id"]
+        with open(f"results/{task_id}.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+        score = sum(t["score"] for t in data["tests"])
+        total += score
+        outputs.append(f"task{task_id[-2:]}_score={score}")
+
+    outputs.append(f"total_score={total}")
+
+    # Выводим в формате, совместимом с GITHUB_OUTPUT
+    for line in outputs:
+        print(line)
+
+    # Также сохраняем в файлы, если нужно
+    for task in config["tasks"]:
+        task_num = task["id"][-2:]
+        score = sum(t["score"] for t in json.load(open(f"results/{task['id']}.json"))["tests"])
+        with open(f"task{task_num}_score.txt", "w") as f:
+            f.write(f"TASK_SCORE={score}\n")
 
 if __name__ == "__main__":
     main()
